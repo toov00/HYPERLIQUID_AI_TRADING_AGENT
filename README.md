@@ -1,4 +1,4 @@
-# Hyperliquid AI Trading Agent [WIP]
+# Hyperliquid AI Trading Agent
 
 An AI-powered trading agent that uses Groq's free API with Llama 3.1 to analyze Hyperliquid market conditions and send intelligent trading alerts based on real-time data.
 
@@ -71,7 +71,7 @@ cp config.groq.json config.json
 {
   "coin": "HYPE",
   "groq_api_key": "gsk-your-key-here",
-  "groq_model": "llama-3.1-70b-versatile",
+  "groq_model": "llama-3.1-8b-instant",
   "ai_analysis_interval": 60,
   "alert_cooldown": 300,
   "user_preferences": {
@@ -114,8 +114,8 @@ Time horizon: `scalping`, `intraday`, `swing`
 
 2. Configure Groq Model:
 
-The default model is `llama-3.1-70b-versatile`. You can also use:
-- `llama-3.1-8b-instant` - Faster, lighter model
+The default model is `llama-3.1-8b-instant`. You can also use:
+- `llama-3-70b-8192` - Larger, more capable model
 - `mixtral-8x7b-32768` - Alternative model option
 
 All models are free to use with Groq's API.

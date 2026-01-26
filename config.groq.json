@@ -1,7 +1,7 @@
 {
   "coin": "HYPE",
   "groq_api_key": "YOUR_GROQ_API_KEY_HERE",
-  "groq_model": "llama-3.1-70b-versatile",
+  "groq_model": "llama-3.1-8b-instant",
   "ai_analysis_interval": 60,
   "alert_cooldown": 300,
   "user_preferences": {

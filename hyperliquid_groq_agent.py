@@ -35,7 +35,7 @@ class HyperliquidGroqAgent:
         if not self.groq_api_key:
             raise ValueError("groq_api_key not found in config.json")
         
-        self.groq_model = config.get('groq_model', 'llama-3.1-70b-versatile')
+        self.groq_model = config.get('groq_model', 'llama-3.1-8b-instant')
         self.groq_url = "https://api.groq.com/openai/v1/chat/completions"
         
         # AI agent settings
@@ -198,7 +198,7 @@ class HyperliquidGroqAgent:
             # Create prompt
             prompt = self._create_analysis_prompt(market_data)
             
-            logger.info("Requesting AI analysis from Groq (Llama 3.1)...")
+            logger.info(f"Requesting AI analysis from Groq ({self.groq_model})...")
             
             # Call Groq API
             headers = {
@@ -228,7 +228,17 @@ class HyperliquidGroqAgent:
                 json=payload,
                 timeout=30
             )
-            response.raise_for_status()
+            
+            if response.status_code != 200:
+                error_detail = response.text
+                logger.error(f"Groq API error ({response.status_code}): {error_detail}")
+                try:
+                    error_json = response.json()
+                    logger.error(f"Error details: {json.dumps(error_json, indent=2)}")
+                except:
+                    logger.error(f"Error response: {error_detail}")
+                logger.debug(f"Request payload: {json.dumps(payload, indent=2)}")
+                response.raise_for_status()
             
             analysis = response.json()['choices'][0]['message']['content']
             
@@ -245,6 +255,12 @@ class HyperliquidGroqAgent:
             
         except requests.exceptions.RequestException as e:
             logger.error(f"Groq API request failed: {e}")
+            if hasattr(e, 'response') and e.response is not None:
+                try:
+                    error_json = e.response.json()
+                    logger.error(f"Error details: {json.dumps(error_json, indent=2)}")
+                except:
+                    logger.error(f"Error response: {e.response.text}")
         except Exception as e:
             logger.error(f"AI analysis failed: {e}")
     
@@ -481,7 +497,7 @@ Respond ONLY with the JSON object, nothing else."""
                 inline=False
             )
         
-        embed.set_footer(text=f"Powered by Groq (Llama 3.1) • {self.pair} • FREE AI")
+        embed.set_footer(text=f"Powered by Groq ({self.groq_model}) • {self.pair} • FREE AI")
         embed.set_timestamp()
         
         webhook.add_embed(embed)
@@ -509,7 +525,7 @@ Respond ONLY with the JSON object, nothing else."""
         if recommendation.get('risk_factors'):
             message += f"*Risk Factors:*\n{recommendation['risk_factors']}\n\n"
         
-        message += f"_Powered by Groq (Llama 3.1) • Free AI • {datetime.now().strftime('%H:%M:%S UTC')}_"
+        message += f"_Powered by Groq ({self.groq_model}) • Free AI • {datetime.now().strftime('%H:%M:%S UTC')}_"
         
         url = f"https://api.telegram.org/bot{self.config['telegram_bot_token']}/sendMessage"
         payload = {
@@ -554,7 +570,7 @@ async def main():
     logger.info("GROQ-POWERED AI TRADING AGENT")
     logger.info("=" * 60)
     logger.info("100% FREE - No credit card, no limits!")
-    logger.info("Powered by Llama 3.1 (70B parameters)")
+    logger.info(f"Model: {config.get('groq_model', 'llama-3.1-8b-instant')}")
     logger.info("Lightning-fast inference")
     logger.info("=" * 60)
     
