@@ -9,7 +9,7 @@ Monitors Hyperliquid order books and trade flow in real-time, analyzes market co
 **Features:**
 - Real-time market monitoring via WebSocket
 - AI-powered analysis using Groq's free API (Llama 3.1)
-- No API costs - completely free to use
+- No API costs, completely free to use
 - Personalized recommendations based on your trading style
 - Discord and Telegram alert integration
 - Opportunity scoring (0-10 scale)
@@ -115,8 +115,8 @@ Time horizon: `scalping`, `intraday`, `swing`
 2. Configure Groq Model:
 
 The default model is `llama-3.1-8b-instant`. You can also use:
-- `llama-3-70b-8192` - Larger, more capable model
-- `mixtral-8x7b-32768` - Alternative model option
+- `llama-3-70b-8192`: Larger, more capable model
+- `mixtral-8x7b-32768`: Alternative model option
 
 All models are free to use with Groq's API.
 
