@@ -60,7 +60,7 @@ class HyperliquidGroqAgent:
     
     async def connect(self):
         """Connect to Hyperliquid WebSocket and start monitoring"""
-        logger.info(f"🚀 Starting Groq-Powered AI Agent for {self.pair}")
+        logger.info(f"Starting Groq-Powered AI Agent for {self.pair}")
         logger.info(f"   Model: {self.groq_model}")
         logger.info(f"   Analysis Interval: {self.ai_analysis_interval}s")
         logger.info(f"   Status: FREE API - No limits!")
@@ -75,7 +75,7 @@ class HyperliquidGroqAgent:
             # Subscribe to all mids for price tracking
             await self._subscribe_allmids(websocket)
             
-            logger.info(f"✅ Successfully subscribed to {self.pair} data feeds")
+            logger.info(f"Successfully subscribed to {self.pair} data feeds")
             
             # Main message processing loop
             await self._process_messages(websocket)
@@ -198,7 +198,7 @@ class HyperliquidGroqAgent:
             # Create prompt
             prompt = self._create_analysis_prompt(market_data)
             
-            logger.info("🤖 Requesting AI analysis from Groq (Llama 3.1)...")
+            logger.info("Requesting AI analysis from Groq (Llama 3.1)...")
             
             # Call Groq API
             headers = {
@@ -238,7 +238,7 @@ class HyperliquidGroqAgent:
                 'market_data': market_data
             }
             
-            logger.info("✅ AI analysis completed")
+            logger.info("AI analysis completed")
             
             # Parse and act on analysis
             await self._process_ai_analysis(analysis, market_data)
@@ -409,16 +409,16 @@ Respond ONLY with the JSON object, nothing else."""
         
         # Determine alert configuration
         alert_config = {
-            'STRONG BUY': {'color': '00ff00', 'emoji': '🚀'},
-            'BUY': {'color': '32cd32', 'emoji': '📈'},
-            'STRONG SELL': {'color': 'ff4500', 'emoji': '⚠️'},
-            'SELL': {'color': 'ffa500', 'emoji': '📉'},
-            'NEUTRAL': {'color': 'ffcc00', 'emoji': '⏸️'}
+            'STRONG BUY': {'color': '00ff00'},
+            'BUY': {'color': '32cd32'},
+            'STRONG SELL': {'color': 'ff4500'},
+            'SELL': {'color': 'ffa500'},
+            'NEUTRAL': {'color': 'ffcc00'}
         }
         
-        config = alert_config.get(rec_type, {'color': '808080', 'emoji': 'ℹ️'})
+        config = alert_config.get(rec_type, {'color': '808080'})
         
-        title = f"{config['emoji']} AI Signal: {rec_type}"
+        title = f"AI Signal: {rec_type}"
         description = recommendation.get('market_assessment', '')
         
         # Send to Discord
@@ -429,19 +429,19 @@ Respond ONLY with the JSON object, nothing else."""
         if self.config.get('telegram_bot_token') and self.config.get('telegram_chat_id'):
             await self._send_telegram_alert(title, description, recommendation, market_data)
         
-        logger.info(f"🔔 AI Alert sent: {rec_type} (Score: {recommendation.get('opportunity_score')}/10)")
+        logger.info(f"AI Alert sent: {rec_type} (Score: {recommendation.get('opportunity_score')}/10)")
     
     async def _send_discord_alert(self, title: str, description: str, recommendation: Dict, market_data: Dict, color: str):
         """Send AI alert to Discord"""
         webhook = DiscordWebhook(
             url=self.config['discord_webhook'],
-            username="Hyperliquid AI Agent 🤖"
+            username="Hyperliquid AI Agent"
         )
         
         embed = DiscordEmbed(title=title, description=description, color=color)
         
         embed.add_embed_field(
-            name="📊 Opportunity Score",
+            name="Opportunity Score",
             value=f"**{recommendation.get('opportunity_score', 0)}/10**",
             inline=True
         )
@@ -449,12 +449,12 @@ Respond ONLY with the JSON object, nothing else."""
         if 'order_book' in market_data:
             ob = market_data['order_book']
             embed.add_embed_field(
-                name="💰 Price Range",
+                name="Price Range",
                 value=f"${ob['best_bid']:.4f} - ${ob['best_ask']:.4f}",
                 inline=True
             )
             embed.add_embed_field(
-                name="📏 Spread",
+                name="Spread",
                 value=f"{ob['spread_pct']:.3f}%",
                 inline=True
             )
@@ -462,21 +462,21 @@ Respond ONLY with the JSON object, nothing else."""
         reasoning = recommendation.get('reasoning', [])
         if reasoning:
             embed.add_embed_field(
-                name="🧠 AI Reasoning",
+                name="AI Reasoning",
                 value="\n".join(f"• {r}" for r in reasoning[:3]),
                 inline=False
             )
         
         if recommendation.get('execution_strategy'):
             embed.add_embed_field(
-                name="⚡ Execution Strategy",
+                name="Execution Strategy",
                 value=recommendation['execution_strategy'],
                 inline=False
             )
         
         if recommendation.get('risk_factors'):
             embed.add_embed_field(
-                name="⚠️ Risk Factors",
+                name="Risk Factors",
                 value=recommendation['risk_factors'],
                 inline=False
             )
@@ -538,7 +538,7 @@ async def main():
     
     # Validate Groq API key
     if not config.get('groq_api_key'):
-        logger.error("❌ groq_api_key not found in config.json")
+        logger.error("groq_api_key not found in config.json")
         logger.error("")
         logger.error("Get your FREE Groq API key:")
         logger.error("1. Go to https://console.groq.com/")
@@ -551,11 +551,11 @@ async def main():
     agent = HyperliquidGroqAgent(config)
     
     logger.info("=" * 60)
-    logger.info("🎉 GROQ-POWERED AI TRADING AGENT")
+    logger.info("GROQ-POWERED AI TRADING AGENT")
     logger.info("=" * 60)
-    logger.info(f"✅ 100% FREE - No credit card, no limits!")
-    logger.info(f"✅ Powered by Llama 3.1 (70B parameters)")
-    logger.info(f"✅ Lightning-fast inference")
+    logger.info("100% FREE - No credit card, no limits!")
+    logger.info("Powered by Llama 3.1 (70B parameters)")
+    logger.info("Lightning-fast inference")
     logger.info("=" * 60)
     
     # Run with auto-reconnect
@@ -563,13 +563,13 @@ async def main():
         try:
             await agent.connect()
         except websockets.exceptions.ConnectionClosed:
-            logger.warning("⚠️  Connection closed. Reconnecting in 5 seconds...")
+            logger.warning("Connection closed. Reconnecting in 5 seconds...")
             await asyncio.sleep(5)
         except KeyboardInterrupt:
-            logger.info("👋 Shutting down agent...")
+            logger.info("Shutting down agent...")
             break
         except Exception as e:
-            logger.error(f"❌ Error: {e}. Reconnecting in 10 seconds...")
+            logger.error(f"Error: {e}. Reconnecting in 10 seconds...")
             await asyncio.sleep(10)
 
 
@@ -577,5 +577,5 @@ if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        logger.info("\n👋 Agent stopped by user")
+        logger.info("\nAgent stopped by user")
         

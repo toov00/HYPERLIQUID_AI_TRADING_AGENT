@@ -20,9 +20,23 @@ Monitors Hyperliquid order books and trade flow in real-time, analyzes market co
 
 **Requirements:** Python 3.8+
 
+1. Clone the repository:
+
 ```bash
 git clone <your-repo>
 cd HYPER_AGENT
+```
+
+2. Create and activate a virtual environment (recommended):
+
+```bash
+python3 -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+```
+
+3. Install dependencies:
+
+```bash
 pip install -r requirements.txt
 ```
 
