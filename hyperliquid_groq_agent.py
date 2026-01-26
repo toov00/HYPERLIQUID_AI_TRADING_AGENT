@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
-Hyperliquid AI Trading Agent - Powered by Groq (FREE!)
+Hyperliquid AI Trading Agent 
+Powered by Groq (FREE!)
 Uses Groq's free API with Llama 3.1 for intelligent market analysis
 """
 
