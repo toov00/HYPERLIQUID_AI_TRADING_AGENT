@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Hyperliquid AI Trading Agent
-Uses Claude AI to make intelligent trading decisions and send personalized alerts
+Hyperliquid AI Trading Agent - Powered by Groq (FREE!)
+Uses Groq's free API with Llama 3.1 for intelligent market analysis
 """
 
 import asyncio
@@ -12,7 +12,6 @@ from typing import Dict, List, Optional
 import websockets
 from discord_webhook import DiscordWebhook, DiscordEmbed
 import requests
-from anthropic import Anthropic
 
 # Configure logging
 logging.basicConfig(
@@ -22,8 +21,8 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-class HyperliquidAIAgent:
-    """AI-powered trading agent using Claude for intelligent market analysis"""
+class HyperliquidGroqAgent:
+    """AI-powered trading agent using Groq's FREE API"""
     
     def __init__(self, config: Dict):
         self.config = config
@@ -31,22 +30,22 @@ class HyperliquidAIAgent:
         self.coin = config.get('coin', 'HYPE')
         self.pair = f"{self.coin}/USDC"
         
-        # Initialize Claude AI
-        self.anthropic = Anthropic(api_key=config.get('anthropic_api_key'))
-        self.model = config.get('claude_model', 'claude-sonnet-4-20250514')
+        # Groq API configuration
+        self.groq_api_key = config.get('groq_api_key')
+        if not self.groq_api_key:
+            raise ValueError("groq_api_key not found in config.json")
+        
+        self.groq_model = config.get('groq_model', 'llama-3.1-70b-versatile')
+        self.groq_url = "https://api.groq.com/openai/v1/chat/completions"
         
         # AI agent settings
-        self.ai_analysis_interval = config.get('ai_analysis_interval', 60)  # Analyze every 60 seconds
+        self.ai_analysis_interval = config.get('ai_analysis_interval', 60)
         self.user_preferences = config.get('user_preferences', {
-            'trading_style': 'balanced',  # conservative, balanced, aggressive
-            'risk_tolerance': 'medium',  # low, medium, high
-            'position_size': 'medium',  # small, medium, large
-            'time_horizon': 'intraday'  # scalping, intraday, swing
+            'trading_style': 'balanced',
+            'risk_tolerance': 'medium',
+            'position_size': 'medium',
+            'time_horizon': 'intraday'
         })
-        
-        # Learning from user feedback
-        self.user_feedback = []
-        self.alert_history = []
         
         # Data storage
         self.current_book = None
@@ -54,13 +53,17 @@ class HyperliquidAIAgent:
         self.price_history = []
         self.last_ai_analysis = None
         self.last_analysis_time = 0
+        self.alert_history = []
         
-        # Alert cooldown (seconds)
-        self.alert_cooldown = config.get('alert_cooldown', 300)  # 5 minutes
-        
+        # Alert cooldown
+        self.alert_cooldown = config.get('alert_cooldown', 300)
+    
     async def connect(self):
         """Connect to Hyperliquid WebSocket and start monitoring"""
-        logger.info(f"Connecting to Hyperliquid WebSocket for {self.pair}...")
+        logger.info(f"🚀 Starting Groq-Powered AI Agent for {self.pair}")
+        logger.info(f"   Model: {self.groq_model}")
+        logger.info(f"   Analysis Interval: {self.ai_analysis_interval}s")
+        logger.info(f"   Status: FREE API - No limits!")
         
         async with websockets.connect(self.ws_url) as websocket:
             # Subscribe to order book (L2)
@@ -72,7 +75,7 @@ class HyperliquidAIAgent:
             # Subscribe to all mids for price tracking
             await self._subscribe_allmids(websocket)
             
-            logger.info(f"Successfully subscribed to {self.pair} data feeds")
+            logger.info(f"✅ Successfully subscribed to {self.pair} data feeds")
             
             # Main message processing loop
             await self._process_messages(websocket)
@@ -81,36 +84,25 @@ class HyperliquidAIAgent:
         """Subscribe to L2 order book data"""
         subscription = {
             "method": "subscribe",
-            "subscription": {
-                "type": "l2Book",
-                "coin": self.coin
-            }
+            "subscription": {"type": "l2Book", "coin": self.coin}
         }
         await websocket.send(json.dumps(subscription))
-        logger.info(f"Subscribed to L2 order book for {self.coin}")
     
     async def _subscribe_trades(self, websocket):
         """Subscribe to trades data"""
         subscription = {
             "method": "subscribe",
-            "subscription": {
-                "type": "trades",
-                "coin": self.coin
-            }
+            "subscription": {"type": "trades", "coin": self.coin}
         }
         await websocket.send(json.dumps(subscription))
-        logger.info(f"Subscribed to trades for {self.coin}")
     
     async def _subscribe_allmids(self, websocket):
         """Subscribe to all mid prices"""
         subscription = {
             "method": "subscribe",
-            "subscription": {
-                "type": "allMids"
-            }
+            "subscription": {"type": "allMids"}
         }
         await websocket.send(json.dumps(subscription))
-        logger.info("Subscribed to all mid prices")
     
     async def _process_messages(self, websocket):
         """Process incoming WebSocket messages"""
@@ -118,8 +110,6 @@ class HyperliquidAIAgent:
             try:
                 data = json.loads(message)
                 await self._handle_message(data)
-            except json.JSONDecodeError as e:
-                logger.error(f"Failed to decode message: {e}")
             except Exception as e:
                 logger.error(f"Error processing message: {e}")
     
@@ -172,29 +162,76 @@ class HyperliquidAIAgent:
             await self._perform_ai_analysis()
             self.last_analysis_time = current_time
     
+    async def _handle_trades(self, data: List[Dict]):
+        """Process trade updates"""
+        for trade in data:
+            if trade.get('coin') != self.coin:
+                continue
+            
+            self.recent_trades.append(trade)
+            
+            # Keep only last 100 trades
+            if len(self.recent_trades) > 100:
+                self.recent_trades.pop(0)
+    
+    async def _handle_mids(self, data: Dict):
+        """Process mid price updates"""
+        mids = data.get('mids', {})
+        
+        if self.coin in mids:
+            mid_price = float(mids[self.coin])
+            self.price_history.append({
+                'price': mid_price,
+                'timestamp': datetime.now()
+            })
+            
+            # Keep only last 100 prices
+            if len(self.price_history) > 100:
+                self.price_history.pop(0)
+    
     async def _perform_ai_analysis(self):
-        """Use Claude AI to analyze market conditions and make recommendations"""
+        """Use Groq AI to analyze market conditions"""
         try:
             # Gather current market data
             market_data = self._gather_market_data()
             
-            # Create prompt for Claude
+            # Create prompt
             prompt = self._create_analysis_prompt(market_data)
             
-            logger.info("🤖 Requesting AI analysis from Claude...")
+            logger.info("🤖 Requesting AI analysis from Groq (Llama 3.1)...")
             
-            # Call Claude API
-            message = self.anthropic.messages.create(
-                model=self.model,
-                max_tokens=2000,
-                messages=[{
-                    "role": "user",
-                    "content": prompt
-                }]
+            # Call Groq API
+            headers = {
+                "Authorization": f"Bearer {self.groq_api_key}",
+                "Content-Type": "application/json"
+            }
+            
+            payload = {
+                "model": self.groq_model,
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": "You are an expert cryptocurrency trading analyst. Always respond with valid JSON only, no markdown formatting."
+                    },
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ],
+                "temperature": 0.3,
+                "max_tokens": 2000
+            }
+            
+            response = requests.post(
+                self.groq_url,
+                headers=headers,
+                json=payload,
+                timeout=30
             )
+            response.raise_for_status()
             
-            # Extract analysis
-            analysis = message.content[0].text
+            analysis = response.json()['choices'][0]['message']['content']
+            
             self.last_ai_analysis = {
                 'timestamp': datetime.now().isoformat(),
                 'analysis': analysis,
@@ -206,6 +243,8 @@ class HyperliquidAIAgent:
             # Parse and act on analysis
             await self._process_ai_analysis(analysis, market_data)
             
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Groq API request failed: {e}")
         except Exception as e:
             logger.error(f"AI analysis failed: {e}")
     
@@ -241,8 +280,7 @@ class HyperliquidAIAgent:
             data['trades'] = {
                 'count': len(recent_20),
                 'total_volume': sum(float(t['sz']) * float(t['px']) for t in recent_20),
-                'avg_size': sum(float(t['sz']) for t in recent_20) / len(recent_20),
-                'buy_sell_ratio': self._calculate_buy_sell_ratio(recent_20)
+                'avg_size': sum(float(t['sz']) for t in recent_20) / len(recent_20) if recent_20 else 0
             }
         
         # Price history data
@@ -265,17 +303,9 @@ class HyperliquidAIAgent:
         total = bid_volume + ask_volume
         return (bid_volume - ask_volume) / total if total > 0 else 0
     
-    def _calculate_buy_sell_ratio(self, trades: List[Dict]) -> float:
-        """Calculate buy/sell pressure from recent trades"""
-        buys = sum(1 for t in trades if t.get('side') == 'buy')
-        sells = len(trades) - buys
-        return buys / sells if sells > 0 else 1.0
-    
     def _create_analysis_prompt(self, market_data: Dict) -> str:
-        """Create a detailed prompt for Claude to analyze market conditions"""
-        return f"""You are an expert cryptocurrency trading analyst with deep knowledge of market microstructure, order flow, and optimal trade execution.
-
-Analyze the current market conditions for {self.pair} on Hyperliquid DEX and provide actionable trading insights.
+        """Create analysis prompt for Groq"""
+        return f"""Analyze the current market conditions for {self.pair} on Hyperliquid DEX and provide a trading recommendation.
 
 CURRENT MARKET DATA:
 {json.dumps(market_data, indent=2)}
@@ -283,63 +313,64 @@ CURRENT MARKET DATA:
 USER TRADING PROFILE:
 - Trading Style: {self.user_preferences.get('trading_style', 'balanced')}
 - Risk Tolerance: {self.user_preferences.get('risk_tolerance', 'medium')}
-- Typical Position Size: {self.user_preferences.get('position_size', 'medium')}
+- Position Size: {self.user_preferences.get('position_size', 'medium')}
 - Time Horizon: {self.user_preferences.get('time_horizon', 'intraday')}
 
-PREVIOUS ALERT HISTORY (last 5):
-{json.dumps(self.alert_history[-5:], indent=2) if self.alert_history else 'No previous alerts'}
+PREVIOUS ALERTS (last 3):
+{json.dumps(self.alert_history[-3:], indent=2) if self.alert_history else 'No previous alerts'}
 
-YOUR TASK:
-Analyze the market conditions and provide:
+Provide your analysis in this EXACT JSON format (no markdown, no code blocks):
 
-1. **Market Assessment** (2-3 sentences): What's happening right now?
-
-2. **Trading Opportunity Score** (0-10): How favorable are current conditions for entering/exiting positions?
-   - Consider: spread, liquidity, volatility, order book imbalance, recent momentum
-   - 0-3: Poor conditions, avoid trading
-   - 4-6: Neutral conditions, proceed with caution
-   - 7-10: Excellent conditions, favorable for execution
-
-3. **Specific Recommendation**: Should the user:
-   - STRONG BUY SIGNAL - Excellent entry conditions
-   - BUY SIGNAL - Good entry conditions  
-   - NEUTRAL - Wait for better conditions
-   - SELL SIGNAL - Good exit conditions
-   - STRONG SELL SIGNAL - Excellent exit conditions
-   - NO SIGNAL - Conditions not notable
-
-4. **Reasoning** (3-4 bullet points): Why this recommendation?
-
-5. **Optimal Execution Strategy**: If trading, what's the best approach?
-   - Market order vs limit order?
-   - Estimated slippage for different sizes
-   - Any timing considerations?
-
-6. **Risk Factors** (if any): What should the user watch out for?
-
-Respond in JSON format:
 {{
-  "market_assessment": "string",
-  "opportunity_score": number,
-  "recommendation": "string",
-  "reasoning": ["point1", "point2", "point3"],
-  "execution_strategy": "string",
-  "risk_factors": "string",
-  "alert_user": boolean,
-  "alert_priority": "low|medium|high"
+  "market_assessment": "Brief 2-3 sentence summary of current conditions",
+  "opportunity_score": 8,
+  "recommendation": "STRONG BUY",
+  "reasoning": [
+    "First key point about why this is a good/bad opportunity",
+    "Second key point about market conditions",
+    "Third key point about execution quality"
+  ],
+  "execution_strategy": "Specific advice on how to execute (market vs limit, size, timing)",
+  "risk_factors": "Key risks to be aware of",
+  "alert_user": true,
+  "alert_priority": "high"
 }}
 
-Be concise, actionable, and honest about uncertainty."""
+SCORING GUIDE:
+- 0-3: Poor conditions, avoid trading
+- 4-6: Neutral conditions, wait for better setup
+- 7-8: Good opportunity, favorable conditions
+- 9-10: Excellent opportunity, act quickly
+
+RECOMMENDATIONS:
+- STRONG BUY: Exceptional entry conditions (score 9-10)
+- BUY: Good entry conditions (score 7-8)
+- NEUTRAL: Wait for better conditions (score 4-6)
+- SELL: Good exit conditions (score 7-8)
+- STRONG SELL: Urgent exit conditions (score 9-10)
+
+Consider: spread tightness, order book depth, liquidity, volatility, order imbalance, recent momentum, and user's trading style.
+
+Respond ONLY with the JSON object, nothing else."""
     
     async def _process_ai_analysis(self, analysis: str, market_data: Dict):
         """Parse AI analysis and take appropriate actions"""
         try:
-            # Try to parse JSON from analysis
-            # Claude might wrap it in markdown, so extract it
+            # Clean up the response
+            analysis = analysis.strip()
+            
+            # Remove markdown code blocks if present
             if "```json" in analysis:
-                json_str = analysis.split("```json")[1].split("```")[0].strip()
+                analysis = analysis.split("```json")[1].split("```")[0].strip()
             elif "```" in analysis:
-                json_str = analysis.split("```")[1].split("```")[0].strip()
+                analysis = analysis.split("```")[1].split("```")[0].strip()
+            
+            # Find JSON object
+            start = analysis.find('{')
+            end = analysis.rfind('}') + 1
+            
+            if start != -1 and end > start:
+                json_str = analysis[start:end]
             else:
                 json_str = analysis
             
@@ -353,83 +384,72 @@ Be concise, actionable, and honest about uncertainty."""
                 'alerted': ai_recommendation.get('alert_user', False)
             })
             
+            # Keep only last 10 alerts in history
+            if len(self.alert_history) > 10:
+                self.alert_history.pop(0)
+            
             # Decide whether to alert user
             should_alert = ai_recommendation.get('alert_user', False)
             opportunity_score = ai_recommendation.get('opportunity_score', 0)
             
             if should_alert and opportunity_score >= 7:
                 await self._send_ai_alert(ai_recommendation, market_data)
+            else:
+                logger.info(f"   Score: {opportunity_score}/10 - {ai_recommendation.get('recommendation')} (not alerting)")
             
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse AI analysis as JSON: {e}")
-            logger.info(f"Raw analysis: {analysis}")
+            logger.debug(f"Raw analysis: {analysis}")
+        except Exception as e:
+            logger.error(f"Error processing analysis: {e}")
     
     async def _send_ai_alert(self, recommendation: Dict, market_data: Dict):
         """Send intelligent alert based on AI analysis"""
         rec_type = recommendation.get('recommendation', 'UNKNOWN')
-        priority = recommendation.get('alert_priority', 'medium')
         
-        # Determine alert color and emoji
+        # Determine alert configuration
         alert_config = {
-            'STRONG BUY SIGNAL': {'color': '00ff00', 'emoji': '🚀'},
-            'BUY SIGNAL': {'color': '32cd32', 'emoji': '📈'},
-            'STRONG SELL SIGNAL': {'color': 'ff4500', 'emoji': '⚠️'},
-            'SELL SIGNAL': {'color': 'ffa500', 'emoji': '📉'},
+            'STRONG BUY': {'color': '00ff00', 'emoji': '🚀'},
+            'BUY': {'color': '32cd32', 'emoji': '📈'},
+            'STRONG SELL': {'color': 'ff4500', 'emoji': '⚠️'},
+            'SELL': {'color': 'ffa500', 'emoji': '📉'},
             'NEUTRAL': {'color': 'ffcc00', 'emoji': '⏸️'}
         }
         
         config = alert_config.get(rec_type, {'color': '808080', 'emoji': 'ℹ️'})
         
-        title = f"{config['emoji']} AI Trading Signal: {rec_type}"
-        description = recommendation.get('market_assessment', 'No assessment available')
+        title = f"{config['emoji']} AI Signal: {rec_type}"
+        description = recommendation.get('market_assessment', '')
         
         # Send to Discord
         if self.config.get('discord_webhook'):
-            await self._send_discord_ai_alert(
-                title, 
-                description, 
-                recommendation, 
-                market_data,
-                config['color']
-            )
+            await self._send_discord_alert(title, description, recommendation, market_data, config['color'])
         
         # Send to Telegram
         if self.config.get('telegram_bot_token') and self.config.get('telegram_chat_id'):
-            await self._send_telegram_ai_alert(title, description, recommendation, market_data)
+            await self._send_telegram_alert(title, description, recommendation, market_data)
         
-        logger.info(f"🔔 AI Alert sent: {rec_type}")
+        logger.info(f"🔔 AI Alert sent: {rec_type} (Score: {recommendation.get('opportunity_score')}/10)")
     
-    async def _send_discord_ai_alert(
-        self, 
-        title: str, 
-        description: str,
-        recommendation: Dict,
-        market_data: Dict,
-        color: str
-    ):
-        """Send AI-powered alert to Discord"""
+    async def _send_discord_alert(self, title: str, description: str, recommendation: Dict, market_data: Dict, color: str):
+        """Send AI alert to Discord"""
         webhook = DiscordWebhook(
             url=self.config['discord_webhook'],
             username="Hyperliquid AI Agent 🤖"
         )
         
-        embed = DiscordEmbed(
-            title=title,
-            description=description,
-            color=color
-        )
+        embed = DiscordEmbed(title=title, description=description, color=color)
         
-        # Add key metrics
         embed.add_embed_field(
-            name="📊 Opportunity Score", 
-            value=f"{recommendation.get('opportunity_score', 0)}/10",
+            name="📊 Opportunity Score",
+            value=f"**{recommendation.get('opportunity_score', 0)}/10**",
             inline=True
         )
         
         if 'order_book' in market_data:
             ob = market_data['order_book']
             embed.add_embed_field(
-                name="💰 Current Price",
+                name="💰 Price Range",
                 value=f"${ob['best_bid']:.4f} - ${ob['best_ask']:.4f}",
                 inline=True
             )
@@ -439,7 +459,6 @@ Be concise, actionable, and honest about uncertainty."""
                 inline=True
             )
         
-        # Add reasoning
         reasoning = recommendation.get('reasoning', [])
         if reasoning:
             embed.add_embed_field(
@@ -448,7 +467,6 @@ Be concise, actionable, and honest about uncertainty."""
                 inline=False
             )
         
-        # Add execution strategy
         if recommendation.get('execution_strategy'):
             embed.add_embed_field(
                 name="⚡ Execution Strategy",
@@ -456,7 +474,6 @@ Be concise, actionable, and honest about uncertainty."""
                 inline=False
             )
         
-        # Add risk factors
         if recommendation.get('risk_factors'):
             embed.add_embed_field(
                 name="⚠️ Risk Factors",
@@ -464,7 +481,7 @@ Be concise, actionable, and honest about uncertainty."""
                 inline=False
             )
         
-        embed.set_footer(text=f"Powered by Claude AI • {self.pair}")
+        embed.set_footer(text=f"Powered by Groq (Llama 3.1) • {self.pair} • FREE AI")
         embed.set_timestamp()
         
         webhook.add_embed(embed)
@@ -474,14 +491,8 @@ Be concise, actionable, and honest about uncertainty."""
         except Exception as e:
             logger.error(f"Failed to send Discord alert: {e}")
     
-    async def _send_telegram_ai_alert(
-        self, 
-        title: str, 
-        description: str,
-        recommendation: Dict,
-        market_data: Dict
-    ):
-        """Send AI-powered alert to Telegram"""
+    async def _send_telegram_alert(self, title: str, description: str, recommendation: Dict, market_data: Dict):
+        """Send AI alert to Telegram"""
         message = f"*{title}*\n\n{description}\n\n"
         message += f"*Opportunity Score:* {recommendation.get('opportunity_score', 0)}/10\n\n"
         
@@ -493,9 +504,12 @@ Be concise, actionable, and honest about uncertainty."""
             message += "\n"
         
         if recommendation.get('execution_strategy'):
-            message += f"*Strategy:* {recommendation['execution_strategy']}\n\n"
+            message += f"*Execution Strategy:*\n{recommendation['execution_strategy']}\n\n"
         
-        message += f"_Powered by Claude AI • {datetime.now().strftime('%H:%M:%S UTC')}_"
+        if recommendation.get('risk_factors'):
+            message += f"*Risk Factors:*\n{recommendation['risk_factors']}\n\n"
+        
+        message += f"_Powered by Groq (Llama 3.1) • Free AI • {datetime.now().strftime('%H:%M:%S UTC')}_"
         
         url = f"https://api.telegram.org/bot{self.config['telegram_bot_token']}/sendMessage"
         payload = {
@@ -505,42 +519,11 @@ Be concise, actionable, and honest about uncertainty."""
         }
         
         try:
-            requests.post(url, json=payload, timeout=10)
+            response = requests.post(url, json=payload, timeout=10)
+            if response.status_code != 200:
+                logger.error(f"Telegram alert failed: {response.text}")
         except Exception as e:
             logger.error(f"Failed to send Telegram alert: {e}")
-    
-    async def _handle_trades(self, data: List[Dict]):
-        """Process trade updates"""
-        for trade in data:
-            if trade.get('coin') != self.coin:
-                continue
-            
-            self.recent_trades.append(trade)
-            
-            # Keep only last 100 trades
-            if len(self.recent_trades) > 100:
-                self.recent_trades.pop(0)
-            
-            price = float(trade['px'])
-            size = float(trade['sz'])
-            side = trade.get('side', 'unknown')
-            
-            logger.debug(f"Trade: {side.upper()} {size:.4f} {self.coin} @ ${price:.4f}")
-    
-    async def _handle_mids(self, data: Dict):
-        """Process mid price updates"""
-        mids = data.get('mids', {})
-        
-        if self.coin in mids:
-            mid_price = float(mids[self.coin])
-            self.price_history.append({
-                'price': mid_price,
-                'timestamp': datetime.now()
-            })
-            
-            # Keep only last 100 prices
-            if len(self.price_history) > 100:
-                self.price_history.pop(0)
 
 
 async def main():
@@ -553,32 +536,46 @@ async def main():
         logger.error("config.json not found. Please create one from config.example.json")
         return
     
-    # Validate API key
-    if not config.get('anthropic_api_key'):
-        logger.error("anthropic_api_key not found in config.json")
-        logger.error("Please add your Claude API key to use the AI agent")
+    # Validate Groq API key
+    if not config.get('groq_api_key'):
+        logger.error("❌ groq_api_key not found in config.json")
+        logger.error("")
+        logger.error("Get your FREE Groq API key:")
+        logger.error("1. Go to https://console.groq.com/")
+        logger.error("2. Sign up (no credit card required)")
+        logger.error("3. Get your API key")
+        logger.error("4. Add it to config.json as 'groq_api_key'")
         return
     
-    # Initialize and run AI agent
-    agent = HyperliquidAIAgent(config)
+    # Initialize and run Groq AI agent
+    agent = HyperliquidGroqAgent(config)
     
-    logger.info("🤖 Hyperliquid AI Agent starting...")
-    logger.info(f"   Model: {agent.model}")
-    logger.info(f"   Pair: {agent.pair}")
-    logger.info(f"   AI Analysis Interval: {agent.ai_analysis_interval}s")
+    logger.info("=" * 60)
+    logger.info("🎉 GROQ-POWERED AI TRADING AGENT")
+    logger.info("=" * 60)
+    logger.info(f"✅ 100% FREE - No credit card, no limits!")
+    logger.info(f"✅ Powered by Llama 3.1 (70B parameters)")
+    logger.info(f"✅ Lightning-fast inference")
+    logger.info("=" * 60)
     
     # Run with auto-reconnect
     while True:
         try:
             await agent.connect()
         except websockets.exceptions.ConnectionClosed:
-            logger.warning("Connection closed. Reconnecting in 5 seconds...")
+            logger.warning("⚠️  Connection closed. Reconnecting in 5 seconds...")
             await asyncio.sleep(5)
+        except KeyboardInterrupt:
+            logger.info("👋 Shutting down agent...")
+            break
         except Exception as e:
-            logger.error(f"Error: {e}. Reconnecting in 10 seconds...")
+            logger.error(f"❌ Error: {e}. Reconnecting in 10 seconds...")
             await asyncio.sleep(10)
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
-    
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        logger.info("\n👋 Agent stopped by user")
+        

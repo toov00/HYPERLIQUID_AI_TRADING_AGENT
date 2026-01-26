@@ -1,7 +1,7 @@
 {
   "coin": "HYPE",
-  "anthropic_api_key": "YOUR_ANTHROPIC_API_KEY",
-  "claude_model": "claude-sonnet-4-20250514",
+  "groq_api_key": "YOUR_GROQ_API_KEY_HERE",
+  "groq_model": "llama-3.1-70b-versatile",
   "ai_analysis_interval": 60,
   "alert_cooldown": 300,
   "user_preferences": {

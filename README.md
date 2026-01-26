@@ -1,14 +1,15 @@
 # Hyperliquid AI Trading Agent [WIP]
 
-An AI-powered trading agent that uses Claude to analyze Hyperliquid market conditions and send intelligent trading alerts based on real-time data.
+An AI-powered trading agent that uses Groq's free API with Llama 3.1 to analyze Hyperliquid market conditions and send intelligent trading alerts based on real-time data.
 
 ## What It Does
 
-Monitors Hyperliquid order books and trade flow in real-time, analyzes market conditions using Claude AI, and sends personalized trading alerts when opportunities match your trading style and risk profile.
+Monitors Hyperliquid order books and trade flow in real-time, analyzes market conditions using Groq's free AI API, and sends personalized trading alerts when opportunities match your trading style and risk profile.
 
 **Features:**
 - Real-time market monitoring via WebSocket
-- AI-powered analysis using Claude Sonnet
+- AI-powered analysis using Groq's free API (Llama 3.1)
+- No API costs - completely free to use
 - Personalized recommendations based on your trading style
 - Discord and Telegram alert integration
 - Opportunity scoring (0-10 scale)
@@ -27,17 +28,18 @@ pip install -r requirements.txt
 
 Dependencies:
 - `websockets`: WebSocket connection to Hyperliquid
-- `anthropic`: Claude AI SDK
 - `discord-webhook`: Discord alert integration
 - `requests`: HTTP requests
 
-Set your Anthropic API key:
+Get your free Groq API key:
 
-```bash
-export ANTHROPIC_API_KEY='your-key-here'
-```
+1. Go to https://console.groq.com/
+2. Sign up for a free account
+3. Navigate to API Keys
+4. Create a new API key
+5. Copy your key (starts with `gsk_...`)
 
-Or add it to your config.json file (see Configuration below).
+Add it to your config file (see Configuration below).
 
 ## Usage
 
@@ -46,7 +48,7 @@ Or add it to your config.json file (see Configuration below).
 1. Copy the example config:
 
 ```bash
-cp config.example.json config.json
+cp config.groq.json config.json
 ```
 
 2. Edit `config.json` with your settings:
@@ -54,8 +56,8 @@ cp config.example.json config.json
 ```json
 {
   "coin": "HYPE",
-  "anthropic_api_key": "sk-ant-your-key-here",
-  "claude_model": "claude-sonnet-4-20250514",
+  "groq_api_key": "gsk-your-key-here",
+  "groq_model": "llama-3.1-70b-versatile",
   "ai_analysis_interval": 60,
   "alert_cooldown": 300,
   "user_preferences": {
@@ -73,7 +75,7 @@ cp config.example.json config.json
 3. Run the agent:
 
 ```bash
-python hyperliquid_optimizer.py
+python hyperliquid_groq_agent.py
 ```
 
 ### Configuration
@@ -96,7 +98,15 @@ Risk tolerance: `low`, `medium`, `high`
 Position size: `small`, `medium`, `large`
 Time horizon: `scalping`, `intraday`, `swing`
 
-2. Configure Alert Channels:
+2. Configure Groq Model:
+
+The default model is `llama-3.1-70b-versatile`. You can also use:
+- `llama-3.1-8b-instant` - Faster, lighter model
+- `mixtral-8x7b-32768` - Alternative model option
+
+All models are free to use with Groq's API.
+
+3. Configure Alert Channels:
 
 Add your Discord webhook URL or Telegram bot credentials to receive alerts when the AI detects trading opportunities.
 
@@ -119,12 +129,12 @@ Each signal includes:
 
 ## Examples
 
-See the main script `hyperliquid_optimizer.py` for the complete implementation. The agent:
+See the main script `hyperliquid_groq_agent.py` for the complete implementation. The agent:
 
 - Connects to Hyperliquid WebSocket
 - Monitors order book depth and spreads
 - Tracks recent trade flow
-- Analyzes conditions every 60 seconds (configurable)
+- Analyzes conditions every 60 seconds (configurable) using Groq's free API
 - Sends alerts when opportunity score >= 7
 
 ## Alerts
@@ -145,7 +155,7 @@ Alerts respect the cooldown period (default 300 seconds) to avoid spam.
 
 **No alerts being sent?** The AI may not see favorable conditions. Check logs for opportunity scores, or adjust your preferences to be more aggressive.
 
-**API rate limits?** Increase `ai_analysis_interval` to reduce API calls. Claude Sonnet has generous rate limits for typical usage.
+**API rate limits?** Groq's free tier is very generous, but if you hit limits, increase `ai_analysis_interval` to reduce API calls.
 
 **Import errors?** Make sure all dependencies are installed: `pip install -r requirements.txt`
 
@@ -168,5 +178,5 @@ This tool is for informational purposes only and does not constitute financial a
 ## Resources
 
 - [Hyperliquid Documentation](https://hyperliquid.gitbook.io/hyperliquid-docs)
-- [Anthropic Claude API](https://docs.anthropic.com/)
+- [Groq API Documentation](https://console.groq.com/docs)
 - [Discord Webhooks Guide](https://discord.com/developers/docs/resources/webhook)
