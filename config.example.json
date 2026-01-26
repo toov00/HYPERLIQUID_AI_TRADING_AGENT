@@ -1,0 +1,16 @@
+{
+  "coin": "HYPE",
+  "anthropic_api_key": "YOUR_ANTHROPIC_API_KEY",
+  "claude_model": "claude-sonnet-4-20250514",
+  "ai_analysis_interval": 60,
+  "alert_cooldown": 300,
+  "user_preferences": {
+    "trading_style": "balanced",
+    "risk_tolerance": "medium",
+    "position_size": "medium",
+    "time_horizon": "intraday"
+  },
+  "discord_webhook": "https://discord.com/api/webhooks/YOUR_WEBHOOK_ID/YOUR_WEBHOOK_TOKEN",
+  "telegram_bot_token": "",
+  "telegram_chat_id": ""
+}

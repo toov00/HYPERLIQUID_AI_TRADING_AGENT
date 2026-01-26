@@ -170,4 +170,3 @@ This tool is for informational purposes only and does not constitute financial a
 - [Hyperliquid Documentation](https://hyperliquid.gitbook.io/hyperliquid-docs)
 - [Anthropic Claude API](https://docs.anthropic.com/)
 - [Discord Webhooks Guide](https://discord.com/developers/docs/resources/webhook)
-# HYPERLIQUID_AI_TRADING_AGENT
