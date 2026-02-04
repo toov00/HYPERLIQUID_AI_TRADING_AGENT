@@ -2,6 +2,8 @@
 
 An AI-powered trading agent that uses Groq's free API with Llama 3.1 to analyze Hyperliquid market conditions and send intelligent trading alerts based on real-time data.
 
+<img src="assets/interface.png" alt="Discord Interface">
+
 ## What It Does
 
 Monitors Hyperliquid order books and trade flow in real-time, analyzes market conditions using Groq's free AI API, and sends personalized trading alerts when opportunities match your trading style and risk profile.
