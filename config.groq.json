@@ -10,7 +10,5 @@
     "position_size": "medium",
     "time_horizon": "intraday"
   },
-  "discord_webhook": "https://discord.com/api/webhooks/YOUR_WEBHOOK_ID/YOUR_WEBHOOK_TOKEN",
-  "telegram_bot_token": "",
-  "telegram_chat_id": ""
+  "discord_webhook": "https://discord.com/api/webhooks/YOUR_WEBHOOK_ID/YOUR_WEBHOOK_TOKEN"
 }

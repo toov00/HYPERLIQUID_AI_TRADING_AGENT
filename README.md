@@ -13,7 +13,7 @@ Monitors Hyperliquid order books and trade flow in real-time, analyzes market co
 - AI-powered analysis using Groq's free API (Llama 3.1)
 - No API costs, completely free to use
 - Personalized recommendations based on your trading style
-- Discord and Telegram alert integration
+- Discord alert integration
 - Opportunity scoring (0-10 scale)
 - Execution strategy recommendations
 - Risk factor identification
@@ -82,9 +82,7 @@ cp config.groq.json config.json
     "position_size": "medium",
     "time_horizon": "intraday"
   },
-  "discord_webhook": "https://discord.com/api/webhooks/...",
-  "telegram_bot_token": "",
-  "telegram_chat_id": ""
+  "discord_webhook": "https://discord.com/api/webhooks/..."
 }
 ```
 
@@ -122,9 +120,9 @@ The default model is `llama-3.1-8b-instant`. You can also use:
 
 All models are free to use with Groq's API.
 
-3. Configure Alert Channels:
+3. Configure Discord Webhook:
 
-Add your Discord webhook URL or Telegram bot credentials to receive alerts when the AI detects trading opportunities.
+Add your Discord webhook URL to receive alerts when the AI detects trading opportunities.
 
 ## Trading Signals
 
@@ -155,7 +153,7 @@ See the main script `hyperliquid_groq_agent.py` for the complete implementation.
 
 ## Alerts
 
-Alerts are sent via Discord webhooks or Telegram when the AI detects favorable trading conditions. Each alert includes:
+Alerts are sent via Discord webhooks when the AI detects favorable trading conditions. Each alert includes:
 
 - Current market price and spread
 - Opportunity score

@@ -783,10 +783,6 @@ Respond ONLY with the JSON object, nothing else."""
         if self.config.get('discord_webhook'):
             await self._send_discord_alert(title, description, recommendation, market_data, config['color'])
         
-        # Send to Telegram
-        if self.config.get('telegram_bot_token') and self.config.get('telegram_chat_id'):
-            await self._send_telegram_alert(title, description, recommendation, market_data)
-        
         logger.info(f"AI Alert sent: {rec_type} (Score: {recommendation.get('opportunity_score')}/10)")
     
     async def _send_discord_alert(self, title: str, description: str, recommendation: Dict, market_data: Dict, color: str):
@@ -848,40 +844,6 @@ Respond ONLY with the JSON object, nothing else."""
             webhook.execute()
         except Exception as e:
             logger.error(f"Failed to send Discord alert: {e}")
-    
-    async def _send_telegram_alert(self, title: str, description: str, recommendation: Dict, market_data: Dict):
-        """Send AI alert to Telegram"""
-        message = f"*{title}*\n\n{description}\n\n"
-        message += f"*Opportunity Score:* {recommendation.get('opportunity_score', 0)}/10\n\n"
-        
-        reasoning = recommendation.get('reasoning', [])
-        if reasoning:
-            message += "*AI Reasoning:*\n"
-            for r in reasoning[:3]:
-                message += f"• {r}\n"
-            message += "\n"
-        
-        if recommendation.get('execution_strategy'):
-            message += f"*Execution Strategy:*\n{recommendation['execution_strategy']}\n\n"
-        
-        if recommendation.get('risk_factors'):
-            message += f"*Risk Factors:*\n{recommendation['risk_factors']}\n\n"
-        
-        message += f"_Powered by Groq ({self.groq_model}) • Free AI • {datetime.now().strftime('%H:%M:%S UTC')}_"
-        
-        url = f"https://api.telegram.org/bot{self.config['telegram_bot_token']}/sendMessage"
-        payload = {
-            'chat_id': self.config['telegram_chat_id'],
-            'text': message,
-            'parse_mode': 'Markdown'
-        }
-        
-        try:
-            response = requests.post(url, json=payload, timeout=10)
-            if response.status_code != 200:
-                logger.error(f"Telegram alert failed: {response.text}")
-        except Exception as e:
-            logger.error(f"Failed to send Telegram alert: {e}")
 
 
 async def main():
