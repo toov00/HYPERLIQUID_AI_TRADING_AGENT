@@ -61,10 +61,7 @@ class HyperliquidGroqAgent:
     
     async def connect(self):
         """Connect to Hyperliquid WebSocket and start monitoring"""
-        logger.info(f"Starting Groq-Powered AI Agent for {self.pair}")
-        logger.info(f"   Model: {self.groq_model}")
-        logger.info(f"   Analysis Interval: {self.ai_analysis_interval}s")
-        logger.info(f"   Status: FREE API - No limits!")
+        logger.info(f"Connecting to {self.pair}...")
         
         async with websockets.connect(self.ws_url) as websocket:
             # Subscribe to order book (L2)
@@ -76,7 +73,7 @@ class HyperliquidGroqAgent:
             # Subscribe to all mids for price tracking
             await self._subscribe_allmids(websocket)
             
-            logger.info(f"Successfully subscribed to {self.pair} data feeds")
+            logger.info(f"Connected. Monitoring {self.pair} (analysis every {self.ai_analysis_interval}s)")
             
             # Main message processing loop
             await self._process_messages(websocket)
@@ -151,12 +148,6 @@ class HyperliquidGroqAgent:
         ask_depth = sum(float(level['sz']) for level in asks[:10])
         total_depth = bid_depth + ask_depth
         
-        # Log current state
-        logger.info(
-            f"{self.pair} | Bid: ${best_bid:.4f} | Ask: ${best_ask:.4f} | "
-            f"Spread: {spread_pct:.3f}% | Depth: ${total_depth:.2f}"
-        )
-        
         # Check if it's time for AI analysis
         current_time = datetime.now().timestamp()
         if current_time - self.last_analysis_time >= self.ai_analysis_interval:
@@ -199,7 +190,7 @@ class HyperliquidGroqAgent:
             # Create prompt
             prompt = self._create_analysis_prompt(market_data)
             
-            logger.info(f"Requesting AI analysis from Groq ({self.groq_model})...")
+            logger.debug(f"Requesting AI analysis from Groq ({self.groq_model})...")
             
             # Call Groq API
             headers = {
@@ -249,7 +240,7 @@ class HyperliquidGroqAgent:
                 'market_data': market_data
             }
             
-            logger.info("AI analysis completed")
+            logger.debug("AI analysis completed")
             
             # Parse and act on analysis
             await self._process_ai_analysis(analysis, market_data)
@@ -267,9 +258,28 @@ class HyperliquidGroqAgent:
     
     def _gather_market_data(self) -> Dict:
         """Gather current market conditions for AI analysis"""
+        now = datetime.now()
+        
+        # Determine trading session
+        hour = now.hour
+        if 0 <= hour < 8:
+            session = "Asia"
+        elif 8 <= hour < 14:
+            session = "Europe"
+        elif 14 <= hour < 21:
+            session = "US"
+        else:
+            session = "Late US/Early Asia"
+        
         data = {
             'pair': self.pair,
-            'timestamp': datetime.now().isoformat()
+            'timestamp': now.isoformat(),
+            'time_context': {
+                'hour': hour,
+                'day_of_week': now.strftime('%A'),
+                'is_weekend': now.weekday() >= 5,
+                'session': session
+            }
         }
         
         # Order book data
@@ -314,7 +324,65 @@ class HyperliquidGroqAgent:
         # Pattern recognition
         data['patterns'] = self._detect_patterns()
         
+        # Profit potential calculation
+        data['profit_potential'] = self._calculate_profit_potential(data)
+        
         return data
+    
+    def _calculate_profit_potential(self, market_data: Dict) -> Dict:
+        """Calculate potential profit margins based on support/resistance"""
+        result = {}
+        
+        patterns = market_data.get('patterns', {})
+        price_patterns = patterns.get('price_patterns', {})
+        order_book = market_data.get('order_book', {})
+        
+        support = price_patterns.get('support')
+        resistance = price_patterns.get('resistance')
+        current_price = order_book.get('best_ask', 0)  # Entry for longs
+        current_bid = order_book.get('best_bid', 0)    # Entry for shorts
+        
+        if not current_price or current_price == 0:
+            return result
+        
+        # Long trade potential (buy now, sell at resistance)
+        if resistance and resistance > current_price:
+            long_profit_pct = ((resistance - current_price) / current_price) * 100
+            result['long_target'] = round(resistance, 4)
+            result['long_profit_pct'] = round(long_profit_pct, 2)
+            
+            # Risk calculation (distance to support)
+            if support and support < current_price:
+                long_risk_pct = ((current_price - support) / current_price) * 100
+                result['long_stop'] = round(support, 4)
+                result['long_risk_pct'] = round(long_risk_pct, 2)
+                
+                # Risk/reward ratio
+                if long_risk_pct > 0:
+                    result['long_rr_ratio'] = round(long_profit_pct / long_risk_pct, 2)
+        
+        # Short trade potential (sell now, buy at support)
+        if support and support < current_bid:
+            short_profit_pct = ((current_bid - support) / current_bid) * 100
+            result['short_target'] = round(support, 4)
+            result['short_profit_pct'] = round(short_profit_pct, 2)
+            
+            # Risk calculation (distance to resistance)
+            if resistance and resistance > current_bid:
+                short_risk_pct = ((resistance - current_bid) / current_bid) * 100
+                result['short_stop'] = round(resistance, 4)
+                result['short_risk_pct'] = round(short_risk_pct, 2)
+                
+                # Risk/reward ratio
+                if short_risk_pct > 0:
+                    result['short_rr_ratio'] = round(short_profit_pct / short_risk_pct, 2)
+        
+        # Minimum profit threshold recommendation
+        min_profit = 0.5  # 0.5% minimum
+        result['long_viable'] = result.get('long_profit_pct', 0) >= min_profit
+        result['short_viable'] = result.get('short_profit_pct', 0) >= min_profit
+        
+        return result
     
     def _calculate_imbalance(self, bids: List[Dict], asks: List[Dict]) -> float:
         """Calculate order book imbalance"""
@@ -698,6 +766,28 @@ RECOMMENDATIONS:
 
 Consider: spread tightness, order book depth, liquidity, volatility, order imbalance, recent momentum, and user's trading style.
 
+TIME CONTEXT:
+- Check time_context in the data for current hour, day, and trading session
+- Weekends typically have lower volume and wider spreads
+- US session (14:00-21:00 UTC) usually has highest volume
+- Asia session (00:00-08:00 UTC) can be quieter
+- Be more conservative during low-volume periods
+
+TREND ANALYSIS:
+- Check momentum.short_term and medium_term for recent price movement %
+- Consider trend as ONE factor, not the only factor
+- Buying during dips CAN be good if: near support, strong buying pressure, or oversold
+- Be cautious buying during sharp drops (> 2%) without clear reversal signals
+- STRONG BUY during downtrend requires: near support + strong bid wall + buying pressure
+
+PROFIT POTENTIAL (check profit_potential in data):
+- long_profit_pct: potential % gain if buying now and selling at resistance
+- short_profit_pct: potential % gain if shorting now and covering at support
+- long_rr_ratio / short_rr_ratio: risk/reward ratio (higher = better)
+- Only recommend trades with profit potential >= 0.5%
+- Prefer trades with risk/reward ratio >= 1.5
+- Include target price and stop loss in execution_strategy
+
 PATTERN SIGNALS TO WATCH FOR:
 - NEAR_SUPPORT/NEAR_RESISTANCE: Price approaching key levels
 - BREAKOUT_UP/BREAKOUT_DOWN: Price breaking recent range
@@ -707,7 +797,7 @@ PATTERN SIGNALS TO WATCH FOR:
 - VOLUME_SPIKE: Unusual trading activity
 - CONSOLIDATION: Low volatility, potential breakout setup
 
-Weight these patterns heavily in your analysis. Multiple bullish signals together = higher opportunity score.
+Weight profit potential and risk/reward heavily. High opportunity score requires good profit margin.
 
 Respond ONLY with the JSON object, nothing else."""
     
@@ -753,7 +843,7 @@ Respond ONLY with the JSON object, nothing else."""
             if should_alert and opportunity_score >= 7:
                 await self._send_ai_alert(ai_recommendation, market_data)
             else:
-                logger.info(f"   Score: {opportunity_score}/10 - {ai_recommendation.get('recommendation')} (not alerting)")
+                logger.debug(f"Score: {opportunity_score}/10 - {ai_recommendation.get('recommendation')} (not alerting)")
             
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse AI analysis as JSON: {e}")
@@ -776,7 +866,9 @@ Respond ONLY with the JSON object, nothing else."""
         
         config = alert_config.get(rec_type, {'color': '808080'})
         
-        title = f"AI Signal: {rec_type}"
+        # Use execution strategy as the main title
+        execution = recommendation.get('execution_strategy', '')
+        title = execution if execution else f"AI Signal: {rec_type}"
         description = recommendation.get('market_assessment', '')
         
         # Send to Discord
@@ -792,50 +884,102 @@ Respond ONLY with the JSON object, nothing else."""
             username="Hyperliquid AI Agent"
         )
         
-        embed = DiscordEmbed(title=title, description=description, color=color)
+        rec_type = recommendation.get('recommendation', 'UNKNOWN')
+        score = recommendation.get('opportunity_score', 0)
+        ob = market_data.get('order_book', {})
+        profit = market_data.get('profit_potential', {})
+        current_price = ob.get('best_ask', 0)
         
-        embed.add_embed_field(
-            name="Opportunity Score",
-            value=f"**{recommendation.get('opportunity_score', 0)}/10**",
-            inline=True
+        # Get profit values
+        if rec_type in ['BUY', 'STRONG BUY']:
+            target = profit.get('long_target')
+            target_pct = profit.get('long_profit_pct', 0)
+            stop = profit.get('long_stop')
+            stop_pct = profit.get('long_risk_pct', 0)
+            rr = profit.get('long_rr_ratio')
+        else:
+            target = profit.get('short_target')
+            target_pct = profit.get('short_profit_pct', 0)
+            stop = profit.get('short_stop')
+            stop_pct = profit.get('short_risk_pct', 0)
+            rr = profit.get('short_rr_ratio')
+        
+        # Build trade setup text
+        setup_text = ""
+        if current_price:
+            setup_text += f"Entry:  ${current_price:.4f}\n"
+        
+        # Always show target - use calculated or estimate 1% move
+        if target:
+            setup_text += f"Target: ${target} (+{target_pct}%)\n"
+        elif current_price:
+            est_target = current_price * 1.01 if rec_type in ['BUY', 'STRONG BUY'] else current_price * 0.99
+            setup_text += f"Target: ${est_target:.4f} (~1%)\n"
+        
+        # Always show stop - use calculated or estimate 0.5% move
+        if stop:
+            setup_text += f"Stop:   ${stop} (-{stop_pct}%)\n"
+        elif current_price:
+            est_stop = current_price * 0.995 if rec_type in ['BUY', 'STRONG BUY'] else current_price * 1.005
+            setup_text += f"Stop:   ${est_stop:.4f} (~0.5%)\n"
+        
+        # Show R:R if available
+        if rr:
+            setup_text += f"R:R:    {rr}x"
+        elif target and stop and current_price:
+            # Calculate R:R manually
+            if rec_type in ['BUY', 'STRONG BUY']:
+                profit = target - current_price
+                risk = current_price - stop
+            else:
+                profit = current_price - target
+                risk = stop - current_price
+            if risk > 0:
+                calc_rr = round(profit / risk, 1)
+                setup_text += f"R:R:    {calc_rr}x"
+        
+        # Build analysis text
+        reasoning = recommendation.get('reasoning', [])
+        analysis_text = ""
+        for r in reasoning[:3]:
+            analysis_text += f"- {r}\n"
+        
+        # Risk text
+        risk = recommendation.get('risk_factors', '')
+        
+        # Create embed
+        embed = DiscordEmbed(
+            title=f"{self.pair} | {rec_type}",
+            color=color
         )
         
-        if 'order_book' in market_data:
-            ob = market_data['order_book']
+        # Description with assessment
+        if description:
+            embed.description = description
+        
+        # Add fields with code blocks to preserve formatting
+        if setup_text:
             embed.add_embed_field(
-                name="Price Range",
-                value=f"${ob['best_bid']:.4f} - ${ob['best_ask']:.4f}",
+                name="Trade Setup",
+                value=f"```\n{setup_text}```",
                 inline=True
             )
-            embed.add_embed_field(
-                name="Spread",
-                value=f"{ob['spread_pct']:.3f}%",
-                inline=True
-            )
         
-        reasoning = recommendation.get('reasoning', [])
-        if reasoning:
+        if analysis_text:
             embed.add_embed_field(
-                name="AI Reasoning",
-                value="\n".join(f"• {r}" for r in reasoning[:3]),
+                name="Analysis",
+                value=f"```\n{analysis_text}```",
                 inline=False
             )
         
-        if recommendation.get('execution_strategy'):
+        if risk:
             embed.add_embed_field(
-                name="Execution Strategy",
-                value=recommendation['execution_strategy'],
+                name="Risk",
+                value=risk,
                 inline=False
             )
         
-        if recommendation.get('risk_factors'):
-            embed.add_embed_field(
-                name="Risk Factors",
-                value=recommendation['risk_factors'],
-                inline=False
-            )
-        
-        embed.set_footer(text=f"Powered by Groq ({self.groq_model}) • {self.pair} • FREE AI")
+        embed.set_footer(text=f"Score: {score}/10")
         embed.set_timestamp()
         
         webhook.add_embed(embed)
@@ -870,13 +1014,7 @@ async def main():
     # Initialize and run Groq AI agent
     agent = HyperliquidGroqAgent(config)
     
-    logger.info("=" * 60)
-    logger.info("GROQ-POWERED AI TRADING AGENT")
-    logger.info("=" * 60)
-    logger.info("100% FREE - No credit card, no limits!")
-    logger.info(f"Model: {config.get('groq_model', 'llama-3.1-8b-instant')}")
-    logger.info("Lightning-fast inference")
-    logger.info("=" * 60)
+    logger.info(f"Hyperliquid AI Agent | Model: {config.get('groq_model', 'llama-3.1-8b-instant')}")
     
     # Run with auto-reconnect
     while True:
@@ -886,7 +1024,7 @@ async def main():
             logger.warning("Connection closed. Reconnecting in 5 seconds...")
             await asyncio.sleep(5)
         except KeyboardInterrupt:
-            logger.info("Shutting down agent...")
+            logger.info("Stopped")
             break
         except Exception as e:
             logger.error(f"Error: {e}. Reconnecting in 10 seconds...")
@@ -897,5 +1035,5 @@ if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        logger.info("\nAgent stopped by user")
+        pass
         

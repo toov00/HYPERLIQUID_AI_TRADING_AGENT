@@ -10,13 +10,13 @@ Monitors Hyperliquid order books and trade flow in real-time, analyzes market co
 
 **Features:**
 - Real-time market monitoring via WebSocket
-- AI-powered analysis using Groq's free API (Llama 3.1)
-- No API costs, completely free to use
-- Personalized recommendations based on your trading style
+- AI-powered analysis using Groq's free API
+- Pattern recognition (price patterns, order book analysis, trade flow)
+- Profit potential calculations with entry, target, stop, and R:R ratio
+- Time-aware analysis (trading session, day of week)
 - Discord alert integration
 - Opportunity scoring (0-10 scale)
-- Execution strategy recommendations
-- Risk factor identification
+- Personalized recommendations based on your trading style
 
 ## Installation
 
@@ -135,31 +135,50 @@ The agent generates five types of signals:
 5. **STRONG SELL SIGNAL**: Excellent exit conditions (score 8-10)
 
 Each signal includes:
-- Opportunity score (0-10)
+- Trade setup (entry price, target, stop loss, risk/reward ratio)
 - Market assessment
-- Reasoning with specific factors
-- Execution strategy recommendations
-- Risk factors to watch
+- Analysis with specific factors
+- Risk warnings
 
-## Examples
+## How It Works
 
-See the main script `hyperliquid_groq_agent.py` for the complete implementation. The agent:
+The agent runs continuously and:
 
-- Connects to Hyperliquid WebSocket
-- Monitors order book depth and spreads
-- Tracks recent trade flow
-- Analyzes conditions every 60 seconds (configurable) using Groq's free API
-- Sends alerts when opportunity score >= 7
+1. Connects to Hyperliquid WebSocket for real-time data
+2. Monitors order book depth, spreads, and trade flow
+3. Detects patterns:
+   - Price patterns (support/resistance, breakouts, trends)
+   - Order book patterns (walls, imbalances, liquidity)
+   - Trade patterns (whale activity, volume spikes, buy/sell pressure)
+4. Calculates profit potential (entry, target, stop, R:R ratio)
+5. Sends data to Groq AI for analysis every 60 seconds
+6. Sends Discord alerts when opportunity score >= 7
 
 ## Alerts
 
-Alerts are sent via Discord webhooks when the AI detects favorable trading conditions. Each alert includes:
+Alerts are sent via Discord webhooks when the AI detects favorable trading conditions (score >= 7).
 
-- Current market price and spread
-- Opportunity score
-- AI reasoning with key factors
-- Execution strategy (market vs limit orders, slippage estimates)
-- Risk factors to consider
+Example alert format:
+```
+HYPE/USDC | BUY
+Market conditions are favorable with tight spread...
+
+Trade Setup
+Entry:  $33.9010
+Target: $34.24 (+1%)
+Stop:   $33.73 (-0.5%)
+R:R:    2.0x
+
+Analysis
+- Tight spread indicates high liquidity
+- Strong buying pressure evident
+- Order book depth sufficient
+
+Risk
+Be cautious of potential volatility...
+
+Score: 8/10
+```
 
 Alerts respect the cooldown period (default 300 seconds) to avoid spam.
 
